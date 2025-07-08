@@ -89,6 +89,13 @@ def laad_data() -> pd.DataFrame:
 def main():
     st.title("Leerlingenvervoer Analyse")
 
+    # UI control to swap table and map
+    layout_optie = st.radio(
+        "Kies de volgorde van de weergave:",
+        ("Tabel links, kaart rechts", "Kaart links, tabel rechts"),
+        horizontal=True
+    )
+
     df = laad_data()
 
     # 🧭 Selecties bovenaan de sidebar
@@ -129,17 +136,21 @@ def main():
 
     col1, col2 = st.columns([1, 2])
 
-    with col1:
+    # Bepaal de volgorde op basis van de selectie
+    if layout_optie == "Tabel links, kaart rechts":
+        table_col, map_col = col1, col2
+    else:
+        map_col, table_col = col1, col2
 
+    with table_col:
         st.subheader("Leerlingstromen naar gekozen bestemming")
         st.dataframe(resultaat, use_container_width=True)
-    with col2:
-     
+
+    with map_col:
         st.subheader("Kaart van herkomstpostcodes")
-    # Laad coördinaten en teken kaart
+        # Laad coördinaten en teken kaart
         try:
             postcode_coords = pd.read_csv(DATA_DIR / "postcode_coords.csv", sep=";", dtype=str)
-            #postcode_coords = pd.read_csv("data/postcode_coords.csv", sep=";", dtype=str)
             postcode_coords.columns = postcode_coords.columns.str.strip().str.upper()
             postcode_coords["LAT"] = postcode_coords["LAT"].str.replace(",", ".").astype(float)
             postcode_coords["LON"] = postcode_coords["LON"].str.replace(",", ".").astype(float)
@@ -149,19 +160,13 @@ def main():
             agg = df_filtered.groupby("PC4")["aantal"].sum().reset_index()
             kaartdata = agg.merge(postcode_coords, left_on="PC4", right_on="POSTCODE")
 
-            #st.map(kaartdata[["LAT", "LON"]].assign(size=kaartdata["aantal"]))
-
             with st.container():
                 st.markdown(
                     "<div style='width: 60%; max-width: 800px;'>",
                     unsafe_allow_html=True
                 )
                 st.map(kaartdata[["LAT", "LON"]].assign(size=kaartdata["aantal"]))
-                
-                
                 st.markdown("</div>", unsafe_allow_html=True)
-
-            
         except Exception as e:
             st.warning(f"Kon geen kaart maken: {e}")
 
